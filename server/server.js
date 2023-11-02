@@ -2,9 +2,8 @@
  * Created by noamc on 8/31/14.
  */
 var binaryServer = require('binaryjs').BinaryServer,
-    https = require('https'),
+    http = require('http'),
     wav = require('wav'),
-    opener = require('opener'),
     fs = require('fs'),
     connect = require('connect'),
     serveStatic = require('serve-static'),
@@ -16,19 +15,12 @@ var uaParser = new UAParser();
 if (!fs.existsSync("recordings"))
     fs.mkdirSync("recordings");
 
-var options = {
-    key: fs.readFileSync('ssl/server.key'),
-    cert: fs.readFileSync('ssl/server.crt'),
-};
-
 var app = connect();
 
 app.use(serveStatic('public'));
 
-var server = https.createServer(options, app);
+var server = http.createServer(app);
 server.listen(9191);
-
-opener("https://localhost:9191");
 
 var server = binaryServer({ server: server });
 
