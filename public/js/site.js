@@ -2,28 +2,27 @@
  * Created by noamc on 8/31/14.
  */
 
-$(function () {
+$(function() {
     var client,
         recorder,
         context,
         bStream,
-        contextSampleRate = (new AudioContext()).sampleRate;
-        resampleRate = contextSampleRate,
-        worker = new Worker('js/worker/resampler-worker.js');
+        contextSampleRate = (new AudioContext()).sampleRate,
+        resampleRate = contextSampleRate;
+    // worker = new Worker('js/worker/resampler-worker.js');
+    // worker.postMessage({ cmd: "init", from: contextSampleRate, to: resampleRate });
+    // worker.addEventListener('message', function(e) {
+    //     if (bStream && bStream.writable)
+    //         bStream.write(convertFloat32ToInt16(e.data.buffer));
+    // }, false);
 
-    worker.postMessage({cmd:"init",from:contextSampleRate,to:resampleRate});
-
-    worker.addEventListener('message', function (e) {
-        if (bStream && bStream.writable)
-            bStream.write(convertFloat32ToInt16(e.data.buffer));
-    }, false);
-
-    $("#start-rec-btn").click(function () {
+    $("#start-rec-btn").click(function() {
         close();
-        client = new BinaryClient('wss://'+location.host);
-        client.on('open', function () {
-            bStream = client.createStream({sampleRate: resampleRate});
-        });
+        client = new WebSocket('ws://' + location.host);
+        client.onopen = function(ws) {
+            console.log('connected to server')
+            // bStream = ws.createStream({ sampleRate: resampleRate });
+        }
 
         if (context) {
             recorder.connect(context.destination);
@@ -36,7 +35,7 @@ $(function () {
         };
 
 
-        navigator.getUserMedia(session, function (stream) {
+        navigator.getUserMedia(session, function(stream) {
             context = new AudioContext();
             var audioInput = context.createMediaStreamSource(stream);
             var bufferSize = 0; // let implementation decide
@@ -49,7 +48,7 @@ $(function () {
 
             recorder.connect(context.destination);
 
-        }, function (e) {
+        }, function(e) {
 
         });
     });
@@ -57,9 +56,13 @@ $(function () {
     function onAudio(e) {
         var left = e.inputBuffer.getChannelData(0);
 
-        worker.postMessage({cmd: "resample", buffer: left});
+        // worker.postMessage({ cmd: "resample", buffer: left });
 
         drawBuffer(left);
+
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(left.buffer);
+        }
     }
 
     function convertFloat32ToInt16(buffer) {
@@ -78,7 +81,7 @@ $(function () {
             height = canvas.height,
             context = canvas.getContext('2d');
 
-        context.clearRect (0, 0, width, height);
+        context.clearRect(0, 0, width, height);
         var step = Math.ceil(data.length / width);
         var amp = height / 2;
         for (var i = 0; i < width; i++) {
@@ -95,15 +98,15 @@ $(function () {
         }
     }
 
-    $("#stop-rec-btn").click(function () {
+    $("#stop-rec-btn").click(function() {
         close();
     });
 
-    function close(){
+    function close() {
         console.log('close');
-        if(recorder)
+        if (recorder)
             recorder.disconnect();
-        if(client)
+        if (client)
             client.close();
     }
 });
